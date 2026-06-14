@@ -1,11 +1,12 @@
+from typing import Any
 from uuid import uuid4
 
 from backend.models import BattleCreatureState, BattleState
 from backend.routers.battles import _calculate_damage
 
 
-def _creature(**overrides) -> BattleCreatureState:  # type: ignore[no-untyped-def]
-    defaults = dict(
+def _creature(**overrides: Any) -> BattleCreatureState:
+    defaults: dict[str, Any] = dict(
         creature_id=uuid4(),
         species="Test",
         common_name="Test Creature",
@@ -22,14 +23,14 @@ def _creature(**overrides) -> BattleCreatureState:  # type: ignore[no-untyped-de
 
 # ---- Damage calculation ---------------------------------------------------
 
-def test_damage_always_at_least_one():
+def test_damage_always_at_least_one() -> None:
     attacker = _creature(attack=1)
     defender = _creature(defence=255)
     for _ in range(50):
         assert _calculate_damage(attacker, defender) >= 1
 
 
-def test_high_attack_beats_low_attack_on_average():
+def test_high_attack_beats_low_attack_on_average() -> None:
     weak = _creature(attack=30)
     strong = _creature(attack=150)
     target = _creature(defence=50)
@@ -39,7 +40,7 @@ def test_high_attack_beats_low_attack_on_average():
     assert strong_avg > weak_avg
 
 
-def test_high_defence_reduces_damage():
+def test_high_defence_reduces_damage() -> None:
     attacker = _creature(attack=100)
     soft = _creature(defence=20)
     tough = _creature(defence=200)
@@ -51,21 +52,21 @@ def test_high_defence_reduces_damage():
 
 # ---- Battle state model ---------------------------------------------------
 
-def test_battle_state_initialises_with_one_creature():
+def test_battle_state_initialises_with_one_creature() -> None:
     c = _creature()
     state = BattleState(challenger_creature=c)
     assert state.opponent_creature is None
     assert state.log == []
 
 
-def test_battle_state_log_appends():
+def test_battle_state_log_appends() -> None:
     state = BattleState(challenger_creature=_creature())
     state.log.append("Battle started!")
     state.log.append("Fox attacks Pigeon for 12 damage!")
     assert len(state.log) == 2
 
 
-def test_battle_state_serialises_round_trip():
+def test_battle_state_serialises_round_trip() -> None:
     c1 = _creature(common_name="Fox")
     c2 = _creature(common_name="Hawk")
     state = BattleState(

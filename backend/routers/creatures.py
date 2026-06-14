@@ -1,4 +1,5 @@
 import uuid as uuid_mod
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from uuid import UUID
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/creatures", tags=["creatures"])
 async def identify_and_store(
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
-) -> CreatureResponse:
+) -> Any:
     """Photograph an animal/insect → AI identifies it → stats generated → stored."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -48,7 +49,7 @@ async def identify_and_store(
     )
 
     # 4. Persist creature
-    row = {
+    row: dict[str, Any] = {
         "user_id": user_id,
         "species": identification.species,
         "common_name": identification.common_name,
@@ -67,7 +68,7 @@ async def identify_and_store(
 @router.get("/", response_model=list[CreatureResponse])
 async def list_creatures(
     user_id: str = Depends(get_current_user),
-) -> list[CreatureResponse]:
+) -> Any:
     """Return every creature in the authenticated user's collection."""
     supabase = get_supabase()
     result = (
@@ -84,7 +85,7 @@ async def list_creatures(
 async def get_creature(
     creature_id: UUID,
     user_id: str = Depends(get_current_user),
-) -> CreatureResponse:
+) -> Any:
     """Get a single creature (must belong to the requesting user)."""
     supabase = get_supabase()
     result = (

@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
@@ -32,7 +33,7 @@ def _calculate_damage(
     return max(1, int(raw * variance))
 
 
-def _fetch_creature(user_id: str, creature_id: UUID) -> dict:
+def _fetch_creature(user_id: str, creature_id: UUID) -> dict[str, Any]:
     """Fetch a creature row or raise 404."""
     supabase = get_supabase()
     result = (
@@ -42,15 +43,16 @@ def _fetch_creature(user_id: str, creature_id: UUID) -> dict:
         .eq("user_id", user_id)
         .execute()
     )
-    if not result.data:
+    rows: list[dict[str, Any]] = result.data  # type: ignore[assignment]
+    if not rows:
         raise HTTPException(
             status_code=404,
             detail="Creature not found in your collection",
         )
-    return result.data[0]
+    return rows[0]
 
 
-def _creature_to_state(creature: dict, creature_id: UUID) -> BattleCreatureState:
+def _creature_to_state(creature: dict[str, Any], creature_id: UUID) -> BattleCreatureState:
     return BattleCreatureState(
         creature_id=creature_id,
         species=creature["species"],
@@ -71,7 +73,7 @@ def _creature_to_state(creature: dict, creature_id: UUID) -> BattleCreatureState
 async def create_battle(
     body: BattleCreate,
     user_id: str = Depends(get_current_user),
-) -> BattleResponse:
+) -> Any:
     """Challenge another player. Caller picks their creature; status → pending."""
     if str(body.opponent_id) == user_id:
         raise HTTPException(status_code=400, detail="Cannot battle yourself")
@@ -81,7 +83,7 @@ async def create_battle(
     state = BattleState(challenger_creature=challenger_state)
 
     supabase = get_supabase()
-    row = {
+    row: dict[str, Any] = {
         "challenger_id": user_id,
         "opponent_id": str(body.opponent_id),
         "status": "pending",
@@ -96,14 +98,15 @@ async def accept_battle(
     battle_id: UUID,
     body: BattleAccept,
     user_id: str = Depends(get_current_user),
-) -> BattleResponse:
+) -> Any:
     """Opponent accepts and picks their creature; status → active."""
     supabase = get_supabase()
     battle = supabase.table("battles").select("*").eq("id", str(battle_id)).execute()
-    if not battle.data:
+    rows: list[dict[str, Any]] = battle.data  # type: ignore[assignment]
+    if not rows:
         raise HTTPException(status_code=404, detail="Battle not found")
 
-    b = battle.data[0]
+    b = rows[0]
     if b["opponent_id"] != user_id:
         raise HTTPException(status_code=403, detail="You are not the opponent")
     if b["status"] != "pending":
@@ -129,7 +132,7 @@ async def accept_battle(
         f"vs {opponent_state.common_name}."
     )
 
-    update = {
+    update: dict[str, Any] = {
         "status": "active",
         "turn": first,
         "state": state.model_dump(mode="json"),
@@ -145,14 +148,15 @@ async def take_action(
     battle_id: UUID,
     body: BattleAction,
     user_id: str = Depends(get_current_user),
-) -> BattleResponse:
+) -> Any:
     """Execute a turn. Currently only 'attack' is supported."""
     supabase = get_supabase()
     battle = supabase.table("battles").select("*").eq("id", str(battle_id)).execute()
-    if not battle.data:
+    rows: list[dict[str, Any]] = battle.data  # type: ignore[assignment]
+    if not rows:
         raise HTTPException(status_code=404, detail="Battle not found")
 
-    b = battle.data[0]
+    b = rows[0]
     if b["status"] != "active":
         raise HTTPException(status_code=400, detail="Battle is not active")
     if b["turn"] != user_id:
@@ -173,7 +177,7 @@ async def take_action(
         f"{attacker.common_name} attacks {defender.common_name} for {damage} damage!"
     )
 
-    update: dict = {}
+    update: dict[str, Any] = {}
 
     if defender.current_hp <= 0:
         state.log.append(
@@ -196,7 +200,7 @@ async def take_action(
 @router.get("/", response_model=list[BattleResponse])
 async def list_battles(
     user_id: str = Depends(get_current_user),
-) -> list[BattleResponse]:
+) -> Any:
     """List all battles the authenticated user is involved in."""
     supabase = get_supabase()
     result = (
@@ -213,16 +217,17 @@ async def list_battles(
 async def get_battle(
     battle_id: UUID,
     user_id: str = Depends(get_current_user),
-) -> BattleResponse:
+) -> Any:
     """Get a single battle (must be a participant)."""
     supabase = get_supabase()
     result = (
         supabase.table("battles").select("*").eq("id", str(battle_id)).execute()
     )
-    if not result.data:
+    rows: list[dict[str, Any]] = result.data  # type: ignore[assignment]
+    if not rows:
         raise HTTPException(status_code=404, detail="Battle not found")
 
-    b = result.data[0]
+    b = rows[0]
     if b["challenger_id"] != user_id and b["opponent_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your battle")
     return b

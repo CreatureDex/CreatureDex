@@ -24,7 +24,7 @@ jobs:
         run: ruff check backend/
 
       - name: Type check
-        run: mypy backend/
+        run: mypy -p backend
 
       - name: Tests
         run: pytest backend/tests/

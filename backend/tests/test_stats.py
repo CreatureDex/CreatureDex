@@ -1,10 +1,12 @@
+from typing import Any
+
 from backend.models import BiologicalTraits
 from backend.services.stats import compute_stats
 
 
-def _traits(**overrides) -> BiologicalTraits:  # type: ignore[no-untyped-def]
+def _traits(**overrides: Any) -> BiologicalTraits:
     """Helper that returns a default trait set with any field overridden."""
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         size_class="medium",
         predator=False,
         venomous=False,
@@ -22,88 +24,88 @@ def _traits(**overrides) -> BiologicalTraits:  # type: ignore[no-untyped-def]
 
 # ---- HP (size class) -----------------------------------------------------
 
-def test_hp_tiny():
+def test_hp_tiny() -> None:
     assert compute_stats(_traits(size_class="tiny")).hp == 30
 
 
-def test_hp_small():
+def test_hp_small() -> None:
     assert compute_stats(_traits(size_class="small")).hp == 50
 
 
-def test_hp_medium():
+def test_hp_medium() -> None:
     assert compute_stats(_traits(size_class="medium")).hp == 75
 
 
-def test_hp_large():
+def test_hp_large() -> None:
     assert compute_stats(_traits(size_class="large")).hp == 110
 
 
-def test_hp_massive():
+def test_hp_massive() -> None:
     assert compute_stats(_traits(size_class="massive")).hp == 150
 
 
 # ---- Attack ---------------------------------------------------------------
 
-def test_attack_base():
+def test_attack_base() -> None:
     assert compute_stats(_traits()).attack == 40
 
 
-def test_attack_predator():
+def test_attack_predator() -> None:
     assert compute_stats(_traits(predator=True)).attack == 75
 
 
-def test_attack_venomous():
+def test_attack_venomous() -> None:
     assert compute_stats(_traits(venomous=True)).attack == 65
 
 
-def test_attack_claws():
+def test_attack_claws() -> None:
     assert compute_stats(_traits(has_claws=True)).attack == 60
 
 
-def test_attack_all_offensive_traits():
+def test_attack_all_offensive_traits() -> None:
     stats = compute_stats(_traits(predator=True, venomous=True, has_claws=True))
     assert stats.attack == 120  # 40 + 35 + 25 + 20
 
 
 # ---- Defence --------------------------------------------------------------
 
-def test_defence_base():
+def test_defence_base() -> None:
     assert compute_stats(_traits()).defence == 40
 
 
-def test_defence_shell():
+def test_defence_shell() -> None:
     assert compute_stats(_traits(has_shell=True)).defence == 75
 
 
-def test_defence_all_defensive_traits():
+def test_defence_all_defensive_traits() -> None:
     stats = compute_stats(_traits(has_shell=True, has_armour=True, camouflage=True))
     assert stats.defence == 115  # 40 + 35 + 25 + 15
 
 
 # ---- Speed ----------------------------------------------------------------
 
-def test_speed_crawling_slow():
+def test_speed_crawling_slow() -> None:
     stats = compute_stats(_traits(locomotion="crawling", top_speed_kmh=2.0))
     assert stats.speed == 25  # base crawling, no bonus
 
 
-def test_speed_flying_fast():
+def test_speed_flying_fast() -> None:
     stats = compute_stats(_traits(locomotion="flying", top_speed_kmh=120.0))
     assert stats.speed == 110  # 70 + 40
 
 
-def test_speed_running_moderate():
+def test_speed_running_moderate() -> None:
     stats = compute_stats(_traits(locomotion="running", top_speed_kmh=50.0))
     assert stats.speed == 75  # 60 + 15
 
 
 # ---- Special --------------------------------------------------------------
 
-def test_special_no_abilities():
+def test_special_no_abilities() -> None:
     assert compute_stats(_traits()).special == 30
 
 
-def test_special_multiple_abilities():
+def test_special_multiple_abilities() -> None:
     stats = compute_stats(
         _traits(special_abilities=["echolocation", "night_vision", "regeneration"])
     )
@@ -112,7 +114,7 @@ def test_special_multiple_abilities():
 
 # ---- Clamping -------------------------------------------------------------
 
-def test_stats_never_exceed_255():
+def test_stats_never_exceed_255() -> None:
     traits = _traits(
         size_class="massive",
         predator=True,
@@ -130,7 +132,7 @@ def test_stats_never_exceed_255():
         assert 1 <= val <= 255
 
 
-def test_stats_never_below_1():
+def test_stats_never_below_1() -> None:
     stats = compute_stats(_traits(size_class="unknown", locomotion="unknown"))
     for val in (stats.hp, stats.attack, stats.defence, stats.speed, stats.special):
         assert val >= 1

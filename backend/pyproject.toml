@@ -1,0 +1,17 @@
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "google.generativeai.*",
+    "google.ai.*",
+    "supabase.*",
+    "postgrest.*",
+    "storage3.*",
+    "realtime.*",
+]
+ignore_missing_imports = true
