@@ -21,6 +21,9 @@ jobs:
       - name: Lint
         run: ruff check backend/
 
+      - name: Type check
+        run: mypy backend/
+
       - name: Tests
         run: pytest backend/tests/
 
