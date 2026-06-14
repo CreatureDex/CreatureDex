@@ -1,3 +1,4 @@
+import base64
 import uuid as uuid_mod
 from typing import Any
 
@@ -6,7 +7,7 @@ from uuid import UUID
 
 from ..config import get_settings
 from ..database import get_supabase
-from ..models import CreatureResponse
+from ..models import Base64ImageRequest, CreatureResponse
 from ..routers.auth import get_current_user
 from ..services.gemini import identify_creature
 from ..services.stats import compute_stats
@@ -14,31 +15,11 @@ from ..services.stats import compute_stats
 router = APIRouter(prefix="/creatures", tags=["creatures"])
 
 
-@router.post(
-    "/identify",
-    response_model=CreatureResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def identify_and_store(
-    file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user),
-) -> Any:
-    """Photograph an animal/insect → AI identifies it → stats generated → stored."""
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Upload must be an image",
-        )
-
-    image_data = await file.read()
-
-    # 1. AI identification
+async def _identify_and_store(image_data: bytes, user_id: str) -> Any:
+    """Shared logic: Gemini ID → stat gen → storage upload → DB insert."""
     identification = await identify_creature(image_data)
-
-    # 2. Deterministic stat generation
     stats = compute_stats(identification.traits)
 
-    # 3. Upload image to Supabase Storage
     settings = get_settings()
     supabase = get_supabase()
     file_name = f"{user_id}/{uuid_mod.uuid4()}.jpg"
@@ -48,7 +29,6 @@ async def identify_and_store(
         f"creature-images/{file_name}"
     )
 
-    # 4. Persist creature
     row: dict[str, Any] = {
         "user_id": user_id,
         "species": identification.species,
@@ -63,6 +43,45 @@ async def identify_and_store(
     }
     result = supabase.table("creatures").insert(row).execute()
     return result.data[0]
+
+
+@router.post(
+    "/identify",
+    response_model=CreatureResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def identify_from_upload(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+) -> Any:
+    """Identify from multipart file upload."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Upload must be an image",
+        )
+    image_data = await file.read()
+    return await _identify_and_store(image_data, user_id)
+
+
+@router.post(
+    "/identify-base64",
+    response_model=CreatureResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def identify_from_base64(
+    body: Base64ImageRequest,
+    user_id: str = Depends(get_current_user),
+) -> Any:
+    """Identify from base64-encoded image (used by mobile app)."""
+    try:
+        image_data = base64.b64decode(body.image_base64)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid base64 image data",
+        )
+    return await _identify_and_store(image_data, user_id)
 
 
 @router.get("/", response_model=list[CreatureResponse])

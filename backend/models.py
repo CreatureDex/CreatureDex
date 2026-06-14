@@ -1,9 +1,13 @@
 from datetime import datetime
 from enum import Enum
 from uuid import UUID
+
 from pydantic import BaseModel, Field
 
-# Biological traits of a creature
+
+# ---------------------------------------------------------------------------
+# Biological traits (returned by Gemini, consumed by the stats engine)
+# ---------------------------------------------------------------------------
 class BiologicalTraits(BaseModel):
     size_class: str  # tiny | small | medium | large | massive
     predator: bool
@@ -24,13 +28,21 @@ class CreatureStats(BaseModel):
     speed: int = Field(ge=1, le=255)
     special: int = Field(ge=1, le=255)
 
+
 class GeminiIdentification(BaseModel):
     species: str
     common_name: str
     description: str
     traits: BiologicalTraits
 
+
+# ---------------------------------------------------------------------------
 # Creature API schemas
+# ---------------------------------------------------------------------------
+class Base64ImageRequest(BaseModel):
+    image_base64: str
+
+
 class CreatureResponse(BaseModel):
     id: UUID
     user_id: UUID
@@ -45,26 +57,29 @@ class CreatureResponse(BaseModel):
     special: int
     created_at: datetime
 
+
+# ---------------------------------------------------------------------------
 # Battle API schemas
+# ---------------------------------------------------------------------------
 class BattleStatus(str, Enum):
     pending = "pending"
     active = "active"
     finished = "finished"
- 
- 
+
+
 class BattleCreate(BaseModel):
     opponent_id: UUID
     creature_id: UUID
- 
- 
+
+
 class BattleAccept(BaseModel):
     creature_id: UUID
- 
- 
+
+
 class BattleAction(BaseModel):
     action: str = "attack"
- 
- 
+
+
 class BattleCreatureState(BaseModel):
     creature_id: UUID
     species: str
@@ -75,14 +90,14 @@ class BattleCreatureState(BaseModel):
     defence: int
     speed: int
     special: int
- 
- 
+
+
 class BattleState(BaseModel):
     challenger_creature: BattleCreatureState
     opponent_creature: BattleCreatureState | None = None
     log: list[str] = []
- 
- 
+
+
 class BattleResponse(BaseModel):
     id: UUID
     challenger_id: UUID
