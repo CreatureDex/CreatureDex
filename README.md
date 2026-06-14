@@ -229,8 +229,10 @@ CreatureDex maps real biological traits extracted by Gemini to battle stats usin
 Yhuen Yutico  
 [GitHub](https://github.com/yhuen24) · [LinkedIn](https://www.linkedin.com/in/yhuenyutico/)
 
-Tafshi Uthshow Hoque
+Tafshi Uthshow Hoque 
 [GitHub](https://github.com/Draxgter1001) · [LinkedIn](https://www.linkedin.com/in/tafshi/)
+
+
 
 ---
 
