@@ -16,12 +16,33 @@ router = APIRouter(prefix="/creatures", tags=["creatures"])
 
 
 async def _identify_and_store(image_data: bytes, user_id: str) -> Any:
-    """Shared logic: Gemini ID → stat gen → storage upload → DB insert."""
+    """Shared logic: Gemini ID → duplicate check → stat gen → storage upload → DB insert."""
     identification = await identify_creature(image_data)
+
+    # Reject duplicates: same common name (case-insensitive) in user's collection.
+    # We match on common_name rather than species because Gemini can return
+    # different valid scientific names for the same animal (e.g. "Canis familiaris"
+    # vs "Canis lupus familiaris" for a Chihuahua).
+    supabase = get_supabase()
+    existing = (
+        supabase.table("creatures")
+        .select("id")
+        .eq("user_id", user_id)
+        .ilike("common_name", identification.common_name)
+        .execute()
+    )
+    if existing.data:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"You already have a {identification.common_name} "
+                f"in your collection!"
+            ),
+        )
+
     stats = compute_stats(identification.traits)
 
     settings = get_settings()
-    supabase = get_supabase()
     file_name = f"{user_id}/{uuid_mod.uuid4()}.jpg"
     supabase.storage.from_("creature-images").upload(file_name, image_data)
     image_url = (

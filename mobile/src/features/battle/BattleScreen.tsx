@@ -9,22 +9,41 @@ import { useBattle } from "./useBattle";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Battle">;
 
-function HpBar({ creature, isMine }: { creature: BattleCreatureState; isMine: boolean }) {
-  const pct = Math.max(0, (creature.current_hp / creature.max_hp) * 100);
+function getHpColor(pct: number): string {
+  if (pct > 0.5) return "#43A047";
+  if (pct > 0.25) return "#FB8C00";
+  return "#E53935";
+}
+
+function CreaturePanel({
+  creature,
+  isMine,
+  label,
+}: {
+  creature: BattleCreatureState;
+  isMine: boolean;
+  label: string;
+}) {
+  const pct = Math.max(0, creature.current_hp / creature.max_hp);
+  const color = getHpColor(pct);
+
   return (
-    <View style={styles.hpPanel}>
+    <View style={[styles.panel, isMine ? styles.panelMine : styles.panelTheirs]}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelLabel}>{label}</Text>
+        <Text style={[styles.hpNumber, { color }]}>
+          {creature.current_hp}/{creature.max_hp}
+        </Text>
+      </View>
       <Text style={styles.creatureName}>{creature.common_name}</Text>
       <View style={styles.hpTrack}>
-        <View
-          style={[
-            styles.hpFill,
-            { width: `${pct}%`, backgroundColor: isMine ? "#2D6A4F" : "#D32F2F" },
-          ]}
-        />
+        <View style={[styles.hpFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
       </View>
-      <Text style={styles.hpText}>
-        {creature.current_hp} / {creature.max_hp} HP
-      </Text>
+      <View style={styles.miniStats}>
+        <Text style={styles.miniStat}>ATK {creature.attack}</Text>
+        <Text style={styles.miniStat}>DEF {creature.defence}</Text>
+        <Text style={styles.miniStat}>SPD {creature.speed}</Text>
+      </View>
     </View>
   );
 }
@@ -46,6 +65,7 @@ export function BattleScreen({ route, navigation }: Props) {
   const isMyTurn = battle.turn === user?.id;
   const isFinished = battle.status === "finished";
   const didWin = battle.winner_id === user?.id;
+  const isPending = battle.status === "pending";
 
   const handleAttack = async () => {
     setAttacking(true);
@@ -60,38 +80,57 @@ export function BattleScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Opponent */}
-      {theirs && <HpBar creature={theirs} isMine={false} />}
+      {/* Opponent panel */}
+      {theirs ? (
+        <CreaturePanel creature={theirs} isMine={false} label="OPPONENT" />
+      ) : (
+        <View style={styles.waitingPanel}>
+          <Text style={styles.waitingEmoji}>⏳</Text>
+          <Text style={styles.waitingText}>Waiting for opponent to accept...</Text>
+        </View>
+      )}
 
       {/* Battle log */}
-      <FlatList
-        data={[...state.log].reverse()}
-        keyExtractor={(_, i) => String(i)}
-        renderItem={({ item }) => <Text style={styles.logEntry}>{item}</Text>}
-        style={styles.log}
-        contentContainerStyle={styles.logContent}
-      />
+      <View style={styles.logContainer}>
+        <FlatList
+          data={[...state.log].reverse()}
+          keyExtractor={(_, i) => String(i)}
+          renderItem={({ item, index }) => (
+            <View style={[styles.logBubble, index === 0 && styles.logLatest]}>
+              <Text style={[styles.logText, index === 0 && styles.logLatestText]}>
+                {item}
+              </Text>
+            </View>
+          )}
+          contentContainerStyle={styles.logContent}
+          ListEmptyComponent={
+            <Text style={styles.logEmpty}>
+              {isPending ? "Challenge sent! Waiting for response..." : "Battle log will appear here"}
+            </Text>
+          }
+        />
+      </View>
 
-      {/* You */}
-      {mine && <HpBar creature={mine} isMine />}
+      {/* Your creature panel */}
+      {mine && <CreaturePanel creature={mine} isMine label="YOU" />}
 
       {/* Action area */}
       <View style={styles.actions}>
         {isFinished ? (
-          <>
-            <Text style={styles.result}>
-              {didWin ? "🏆 You Win!" : "💀 You Lost"}
-            </Text>
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultEmoji}>{didWin ? "🏆" : "💀"}</Text>
+            <Text style={styles.resultText}>{didWin ? "Victory!" : "Defeated"}</Text>
             <Button title="Back to Battles" onPress={() => navigation.goBack()} />
-          </>
+          </View>
+        ) : isPending ? (
+          <Text style={styles.waitingAction}>Waiting for opponent...</Text>
         ) : isMyTurn ? (
-          <Button
-            title="⚔️  Attack!"
-            onPress={handleAttack}
-            loading={attacking}
-          />
+          <Button title="⚔️  Attack!" onPress={handleAttack} loading={attacking} />
         ) : (
-          <Text style={styles.waiting}>Waiting for opponent...</Text>
+          <View style={styles.opponentTurn}>
+            <Text style={styles.opponentTurnEmoji}>⏳</Text>
+            <Text style={styles.opponentTurnText}>Opponent's turn...</Text>
+          </View>
         )}
       </View>
     </View>
@@ -99,32 +138,79 @@ export function BattleScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F5F0" },
-  hpPanel: { padding: 16, backgroundColor: "#fff", marginBottom: 2 },
-  creatureName: { fontSize: 18, fontWeight: "700", color: "#1A1A1A", marginBottom: 6 },
+  container: { flex: 1, backgroundColor: "#1A1A2E" },
+
+  // Creature panels
+  panel: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  panelTheirs: { backgroundColor: "#2A1A1A" },
+  panelMine: { backgroundColor: "#1A2A1A" },
+  panelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  panelLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#888",
+    letterSpacing: 1.5,
+  },
+  hpNumber: { fontSize: 14, fontWeight: "700" },
+  creatureName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 8,
+  },
   hpTrack: {
     height: 10,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 5,
     overflow: "hidden",
   },
   hpFill: { height: "100%", borderRadius: 5 },
-  hpText: { fontSize: 12, color: "#888", marginTop: 4 },
-  log: { flex: 1, backgroundColor: "#FAFAFA" },
+  miniStats: { flexDirection: "row", gap: 12, marginTop: 8 },
+  miniStat: { fontSize: 11, color: "#999", fontWeight: "600" },
+
+  // Waiting panel
+  waitingPanel: {
+    backgroundColor: "#2A2A3E",
+    padding: 30,
+    alignItems: "center",
+  },
+  waitingEmoji: { fontSize: 32, marginBottom: 8 },
+  waitingText: { color: "#888", fontSize: 14 },
+
+  // Battle log
+  logContainer: { flex: 1, backgroundColor: "#16162A" },
   logContent: { padding: 16, gap: 6 },
-  logEntry: { fontSize: 14, color: "#444", lineHeight: 20 },
-  actions: { padding: 20, backgroundColor: "#fff" },
-  result: {
+  logBubble: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  logLatest: { backgroundColor: "rgba(45,106,79,0.3)" },
+  logText: { color: "#AAA", fontSize: 14, lineHeight: 20 },
+  logLatestText: { color: "#fff", fontWeight: "600" },
+  logEmpty: { color: "#666", fontSize: 14, textAlign: "center", paddingTop: 40 },
+
+  // Actions
+  actions: { padding: 16, backgroundColor: "#1A1A2E" },
+  resultContainer: { alignItems: "center", paddingVertical: 8 },
+  resultEmoji: { fontSize: 40, marginBottom: 4 },
+  resultText: {
     fontSize: 24,
     fontWeight: "800",
-    textAlign: "center",
+    color: "#fff",
     marginBottom: 12,
-    color: "#1A1A1A",
   },
-  waiting: {
-    fontSize: 16,
-    color: "#888",
-    textAlign: "center",
-    paddingVertical: 12,
-  },
+  waitingAction: { color: "#888", textAlign: "center", paddingVertical: 16 },
+  opponentTurn: { alignItems: "center", paddingVertical: 12 },
+  opponentTurnEmoji: { fontSize: 24, marginBottom: 4 },
+  opponentTurnText: { color: "#888", fontSize: 15 },
 });

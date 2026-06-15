@@ -35,6 +35,18 @@ export function PreviewScreen({ route, navigation }: Props) {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({ detail: "Request failed" }));
+        if (response.status === 409) {
+          // Duplicate species
+          Alert.alert(
+            "Already Caught!",
+            err.detail ?? "This species is already in your collection.",
+            [
+              { text: "View Collection", onPress: () => navigation.popToTop() },
+              { text: "Try Another", onPress: () => navigation.goBack() },
+            ],
+          );
+          return;
+        }
         throw new Error(err.detail ?? "Identification failed");
       }
 

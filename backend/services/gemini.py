@@ -6,15 +6,26 @@ from ..config import get_settings
 from ..models import GeminiIdentification
 
 _PROMPT = """\
-Analyse this image and identify the animal or insect species.
+Analyse this image and identify the animal or insect.
+
+NAMING RULES (follow exactly):
+- common_name: Use the most specific common English name. For domestic animal
+  breeds, use the breed name (e.g. "Chihuahua", "Labrador Retriever", "Persian
+  Cat", "Holland Lop Rabbit"). For wild animals, use the standard common name
+  (e.g. "Red Fox", "Monarch Butterfly", "European Robin").
+- species: Use the standard binomial name (Genus + species) in italicised form.
+  Always use the most widely accepted name. For domestic dogs always use
+  "Canis lupus familiaris", for domestic cats always use "Felis catus".
+  Never vary between synonyms across different calls.
+- common_name must be title-cased (e.g. "Red Fox", not "red fox").
 
 Return your response as a JSON object with exactly this structure (no markdown
 fences, no extra text — only valid JSON):
 
 {
-    "species": "Scientific name (genus + species)",
-    "common_name": "Common English name",
-    "description": "Brief 1-2 sentence description of the species",
+    "species": "Genus species",
+    "common_name": "Title Cased Common Name",
+    "description": "Brief 1-2 sentence description of the species or breed",
     "traits": {
         "size_class": "tiny | small | medium | large | massive",
         "predator": true or false,

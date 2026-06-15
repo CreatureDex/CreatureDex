@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { apiFetch } from "../../lib/api";
 import type { Creature } from "../../types";
 
@@ -20,9 +21,12 @@ export function useCollection() {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  // Refetch whenever this screen comes into focus (tab switch, navigate back)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   return { creatures, loading, error, refresh };
 }
